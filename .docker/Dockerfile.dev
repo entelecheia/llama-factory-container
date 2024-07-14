@@ -1,5 +1,5 @@
 # Sets the base image for subsequent instructions
-FROM nvidia/cuda:12.2.0-devel-ubuntu22.04 AS builder
+FROM nvidia/cuda:12.5.1-devel-ubuntu22.04 AS builder
 
 # Sets labels for the image
 LABEL org.opencontainers.image.source="https://github.com/entelecheia/llama-factory-container"
