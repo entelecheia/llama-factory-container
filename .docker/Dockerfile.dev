@@ -12,10 +12,16 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update --fix-missing \
     && apt-get install -y curl wget jq sudo gosu git build-essential software-properties-common \
     locales locales-all fontconfig fonts-nanum \
+    python3-pip python3-packaging python3-venv \
     tzdata openssh-server \
     # Cleans up unnecessary packages to reduce image size
     && apt-get autoremove -y \
     && apt-get clean -y
+
+# Create symbolic links for Python and pip
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python \
+    && ln -sf /usr/bin/python3.10 /usr/bin/python3 \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip
 
 # Sets Python environment variables
 ENV PIP_DEFAULT_TIMEOUT 100
@@ -31,6 +37,67 @@ ENV APP_SRC_DIR=${APP_INSTALL_ROOT}/${APP_DIRNAME}
 ENV APP_VIRTUAL_ENV=${APP_INSTALL_ROOT}/.venvs/${APP_DIRNAME}
 ENV PATH="$APP_VIRTUAL_ENV/bin:$PATH"
 ENV APP_WORKSPACE_ROOT=${APP_INSTALL_ROOT}/workspace
+
+# Define environments
+ENV MAX_JOBS=4
+ENV FLASH_ATTENTION_FORCE_BUILD=TRUE
+ENV VLLM_WORKER_MULTIPROC_METHOD=spawn
+
+# Define installation arguments
+ARG INSTALL_BNB=false
+ARG INSTALL_VLLM=false
+ARG INSTALL_DEEPSPEED=false
+ARG INSTALL_FLASHATTN=false
+ARG INSTALL_LIGER_KERNEL=false
+ARG INSTALL_HQQ=false
+ARG INSTALL_EETQ=false
+ARG PIP_INDEX=https://pypi.org/simple
+
+# Set the working directory
+WORKDIR ${APP_SRC_DIR}
+
+# Install the requirements
+COPY src/LLaMA-Factory/requirements.txt ${APP_SRC_DIR}
+
+# Install pytorch and openllm to the virtual environment
+RUN python3 -m venv ${APP_VIRTUAL_ENV} && \
+    pip install --upgrade pip setuptools wheel && \
+    pip config set global.index-url "$PIP_INDEX" && \
+    pip config set global.extra-index-url "$PIP_INDEX" && \
+    python3 -m pip install -r requirements.txt
+
+# Copy the rest of the application into the image
+COPY src/LLaMA-Factory/ ${APP_SRC_DIR}
+
+# Install the LLaMA Factory
+RUN EXTRA_PACKAGES="metrics"; \
+    if [ "$INSTALL_BNB" == "true" ]; then \
+        EXTRA_PACKAGES="${EXTRA_PACKAGES},bitsandbytes"; \
+    fi; \
+    if [ "$INSTALL_VLLM" == "true" ]; then \
+        EXTRA_PACKAGES="${EXTRA_PACKAGES},vllm"; \
+    fi; \
+    if [ "$INSTALL_DEEPSPEED" == "true" ]; then \
+        EXTRA_PACKAGES="${EXTRA_PACKAGES},deepspeed"; \
+    fi; \
+    if [ "$INSTALL_LIGER_KERNEL" == "true" ]; then \
+        EXTRA_PACKAGES="${EXTRA_PACKAGES},liger-kernel"; \
+    fi; \
+    if [ "$INSTALL_HQQ" == "true" ]; then \
+        EXTRA_PACKAGES="${EXTRA_PACKAGES},hqq"; \
+    fi; \
+    if [ "$INSTALL_EETQ" == "true" ]; then \
+        EXTRA_PACKAGES="${EXTRA_PACKAGES},eetq"; \
+    fi; \
+    pip install -e ".[$EXTRA_PACKAGES]"
+
+# Rebuild flash attention
+RUN pip uninstall -y transformer-engine flash-attn && \
+    if [ "$INSTALL_FLASHATTN" == "true" ]; then \
+        pip uninstall -y ninja && pip install ninja && \
+        pip install --no-cache-dir flash-attn --no-build-isolation; \
+    fi
+
 ARG ARG_WORKSPACE_ROOT="/workspace"
 ENV WORKSPACE_ROOT $ARG_WORKSPACE_ROOT
 # Sets up the workspace for the user
@@ -46,7 +113,7 @@ COPY ./.docker/scripts/ ./scripts/
 ENV TZ="Asia/Seoul"
 # Sets up the locale to en_US.UTF-8
 RUN localedef -v -c -i en_US -f UTF-8 en_US.UTF-8 || true
-
+    
 # Setting ARGs and ENVs for user creation and workspace setup
 ARG ARG_USERNAME="dev"
 ARG ARG_USER_UID=9001
@@ -83,6 +150,14 @@ COPY ./.docker/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 # Sets the entrypoint script as the default command that will be executed when the container is run
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-    
+
+# Expose port 7860 for the LLaMA Board
+ENV GRADIO_SERVER_PORT 7860
+EXPOSE 7860
+
+# Expose port 8000 for the API service
+ENV API_PORT 8000
+EXPOSE 8000
+
 # Specifies the command that will be executed when the container is run
 CMD ["bash"]
