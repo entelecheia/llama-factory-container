@@ -1,3 +1,5 @@
+workspace
+
 # environment files
 .env.secret
 
