@@ -16,16 +16,25 @@ services:
         ARG_APP_INSTALL_ROOT: $APP_INSTALL_ROOT
         ARG_APP_DIRNAME: $APP_DIRNAME
         ARG_CONTAINER_SERVICE_NAME: $CONTAINER_SERVICE_NAME
+        INSTALL_BNB: false
+        INSTALL_VLLM: false
+        INSTALL_DEEPSPEED: false
+        INSTALL_FLASHATTN: false
+        INSTALL_LIGER_KERNEL: false
+        INSTALL_HQQ: false
+        INSTALL_EETQ: false
+        PIP_INDEX: https://pypi.org/simple
     # Sets the image name for the built image
     image: $IMAGE_NAME:$IMAGE_TAG
     # Sets the hostname of the container
     hostname: $CONTAINER_HOSTNAME
     # Sets tty to true if the container needs a pseudo-TTY
-    tty: false
+    tty: true
+    stdin_open: true
     command:
       # Specifies the command to be executed when the container is run
       - bash
-      - $CONTAINER_LAUNCH_SCRIPT
+      # - $CONTAINER_LAUNCH_SCRIPT
     # set the environment variables
     environment:
       USER_UID: $CONTAINER_USER_UID
@@ -46,6 +55,11 @@ services:
       # Maps directories from the host to the container
       - "$HOST_SCRIPTS_DIR:$CONTAINER_WORKSPACE_ROOT/scripts"
       - "$HOST_HF_HOME:$CONTAINER_HF_HOME"
+      - "$HOST_CACHE_DIR:$CONTAINER_CACHE_DIR"
+      - "$HOST_CACHE_DIR/ms_cache:$CONTAINER_CACHE_DIR/modelscope"
+      - "$HOST_CACHE_DIR/om_cache:$CONTAINER_CACHE_DIR/openmind"
+      - "$HOST_WORKSPACE_ROOT/data:$CONTAINER_WORKSPACE_ROOT/data"
+      - "$HOST_WORKSPACE_ROOT/output:$CONTAINER_WORKSPACE_ROOT/output"
     deploy:
       resources:
         reservations:
