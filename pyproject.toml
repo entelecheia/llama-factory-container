@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llama-factory"
-version = "0.0.0"
+version = "0.1.0"
 description = "llama-factory-container is a comprehensive AI model training and deployment framework supporting various models, methods, and optimizations."
 authors = ["Young Joon Lee <entelecheia@hotmail.com>"]
 license = "MIT"
