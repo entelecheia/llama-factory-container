@@ -48,7 +48,7 @@ use_deploy_workflows: true
 use_jupyter: false
 use_semantic_versioning_for_image: true
 use_ssh_service: true
-use_tty: false
+use_tty: true
 use_web_service: true
 web_service_host_port: 19090
 web_service_port: 8080
